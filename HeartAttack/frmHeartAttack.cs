@@ -50,8 +50,8 @@ namespace HeartAttack
         private Label  lblMsg;
 
         // ── 音效 ─────────────────────────────────────────────────────────────────
-        private readonly Dictionary<int, SoundPlayer> sndNumbers = new Dictionary<int, SoundPlayer>();
-        private SoundPlayer sndWin, sndLose, sndSlap;
+        // ── 音效 ─────────────────────────────────────────────────────────────
+
 
         // ── 牌的尺寸（配合圖片 85x115）────────────────────────────────────────────
         private const int CW = 85, CH = 115;
@@ -279,39 +279,40 @@ namespace HeartAttack
         // =====================================================================
         // 音效
         // =====================================================================
+        // ── 音效 ─────────────────────────────────────────────────────────────
+        private string _soundDir = null;
+
         private void LoadSounds()
         {
-            string dir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sounds");
-            string[] names = { "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K" };
-            for (int r = 1; r <= 13; r++)
-                sndNumbers[r] = TryLoad(System.IO.Path.Combine(dir, names[r - 1] + ".wav"));
-
-            sndWin  = TryLoad(System.IO.Path.Combine(dir, "win.wav"));
-            sndLose = TryLoad(System.IO.Path.Combine(dir, "lose.wav"));
-            sndSlap = TryLoad(System.IO.Path.Combine(dir, "slap.wav"));
+            string exeDir = System.IO.Path.GetDirectoryName(Application.ExecutablePath);
+            string[] candidates = {
+                System.IO.Path.Combine(exeDir, "Sounds"),                        // bin\Debug\Sounds
+                System.IO.Path.GetFullPath(System.IO.Path.Combine(exeDir, @"..\..\Sounds")),  // 專案根目錄\Sounds
+                System.IO.Path.GetFullPath(System.IO.Path.Combine(exeDir, @"..\Sounds")),     // 上一層
+                System.IO.Path.Combine(Application.StartupPath, "Sounds"),
+                "Sounds"
+            };
+            foreach (var d in candidates)
+                if (System.IO.Directory.Exists(d)) { _soundDir = d; break; }
         }
 
-        private SoundPlayer TryLoad(string path)
-        {
-            try
-            {
-                if (System.IO.File.Exists(path))
-                {
-                    var sp = new SoundPlayer(path);
-                    sp.Load();
-                    return sp;
-                }
-            }
-            catch { }
-            return null;
-        }
-
-        private void Play(SoundPlayer sp) { try { sp?.Play(); } catch { } }
+        // 翻牌時播對應數字音效
         private void PlayNum(int rank)
         {
-            SoundPlayer sp;
-            if (sndNumbers.TryGetValue(rank, out sp)) Play(sp);
+            string[] names = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" };
+            PlayFile(names[rank - 1] + ".wav");
         }
+
+        // 播指定音效檔
+        private void PlayFile(string filename)
+        {
+            if (_soundDir == null) return;
+            string path = System.IO.Path.Combine(_soundDir, filename);
+            if (!System.IO.File.Exists(path)) return;
+            try { new System.Media.SoundPlayer(path).Play(); }
+            catch { }
+        }
+
 
         // =====================================================================
         // 難度選擇
@@ -385,7 +386,7 @@ namespace HeartAttack
             if (cur.Type == PlayerType.Human)
             {
                 btnFlip.Enabled = true;
-                SetMsg($"你的回合 → 喊「{num}」，按「出牌」或 Enter（5秒未出牌自動翻）");
+                SetMsg($"你的回合 → 喊「{num}」，按「出牌」（5秒未出牌自動翻）");
                 humanAutoFlipTimer.Stop();
                 humanAutoFlipTimer.Start();   // 5秒未出牌，自動翻
             }
@@ -449,7 +450,7 @@ namespace HeartAttack
             slapOrder.Clear();
             foreach (var p in game.Players) p.JustSlapped = false;
 
-            SetMsg("🔥🔥  數字相同！快拍！！（按 Space 或點「拍！」按鈕）🔥🔥");
+            SetMsg("🔥🔥  數字相同！快拍！！（點「拍！」按鈕）🔥🔥");
 
             btnSlap.Enabled = true;
             btnSlap.BringToFront();
@@ -503,7 +504,7 @@ namespace HeartAttack
                 int pileCount = game.Pile.Count;
                 game.GivePileTo(0);   // 牌堆全部給玩家
                 game.SetTurn(0);      // 玩家收牌後先出
-                Play(sndSlap);
+                PlayFile("slap.wav");
                 SetMsg(string.Format("❌ 搶拍失敗！你收走了 {0} 張牌作為懲罰！", pileCount));
                 gamePanel.Invalidate();
             }
@@ -517,7 +518,7 @@ namespace HeartAttack
 
             slapOrder.Add(playerIdx);
             game.Players[playerIdx].JustSlapped = true;
-            Play(sndSlap);
+            PlayFile("slap.wav");
             gamePanel.Invalidate();
 
             if (slapOrder.Count >= game.AliveCount)
@@ -624,15 +625,15 @@ namespace HeartAttack
             if (forceHumanWin)
             {
                 humanLost = false;
-                Play(sndWin);
+                PlayFile("win.wav");
                 SetMsg("🎉  恭喜！你贏了！");
             }
             else
             {
                 var loser = game.GetLoser();
                 humanLost = loser != null && loser.Id == 0;
-                if (humanLost) { Play(sndLose); SetMsg("😢  你輸了！電腦獲勝！"); }
-                else           { Play(sndWin);  SetMsg("🎉  恭喜！你贏了！");     }
+                if (humanLost) { PlayFile("lose.wav"); SetMsg("😢  你輸了！電腦獲勝！"); }
+                else           { PlayFile("win.wav");  SetMsg("🎉  恭喜！你贏了！");     }
             }
 
             btnFlip.Visible = false;
