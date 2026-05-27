@@ -84,8 +84,16 @@ namespace HeartAttack
             DoubleBuffered  = true;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox     = false;
+            StartPosition   = FormStartPosition.CenterScreen;
             KeyPreview      = true;
             KeyDown        += OnKeyDown;
+            FormClosing    += (s, e) =>
+            {
+                var res = MessageBox.Show("確定要關閉遊戲嗎？",
+                    "關閉確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (res == DialogResult.No)
+                    e.Cancel = true;
+            };
 
             // ── 遊戲繪圖面板 ──
             gamePanel = new DoubleBufferedPanel
@@ -947,7 +955,7 @@ namespace HeartAttack
 
             var loser     = game.GetLoser();
             bool humanLost = loser != null && loser.Id == 0;
-            string line1  = humanLost ? "😢  你  輸  了  ！" : "🎉  恭  喜  獲  勝  ！";
+            string line1  = humanLost ? "  你  輸  了  ！" : "  恭  喜  獲  勝  ！";
             string line2  = loser != null
                 ? string.Format("輸家：{0}", loser.Name)
                 : "遊戲結束";
